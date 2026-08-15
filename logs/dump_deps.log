@@ -1,0 +1,35 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.4.0-insiders
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+系统找不到指定的文件。
+[vcvarsall.bat] Environment initialized for: 'x64'
+Microsoft (R) COFF/PE Dumper Version 14.50.35725.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file D:\Jupyter\A_pypy\Decom_for_Undirected_pypy\CMDSA\build\decom_h.pyd
+
+File Type: DLL
+
+  Image has the following dependencies:
+
+    igraph.dll
+    python39.dll
+    MSVCP140.dll
+    VCRUNTIME140_1.dll
+    VCRUNTIME140.dll
+    api-ms-win-crt-string-l1-1-0.dll
+    api-ms-win-crt-heap-l1-1-0.dll
+    api-ms-win-crt-runtime-l1-1-0.dll
+    KERNEL32.dll
+    api-ms-win-crt-math-l1-1-0.dll
+
+  Summary
+
+        1000 .data
+        2000 .pdata
+        C000 .rdata
+        1000 .reloc
+        1000 .rsrc
+       26000 .text

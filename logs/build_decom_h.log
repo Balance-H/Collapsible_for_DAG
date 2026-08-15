@@ -1,0 +1,53 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.4.0-insiders
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+系统找不到指定的文件。
+[vcvarsall.bat] Environment initialized for: 'x64'
+-- The C compiler identification is MSVC 19.50.35725.0
+-- The CXX compiler identification is MSVC 19.50.35725.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: D:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: D:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Warning (dev) at D:/vcpkg-master/installed/x64-windows/share/pybind11/FindPythonLibsNew.cmake:101 (message):
+  Policy CMP0148 is not set: The FindPythonInterp and FindPythonLibs modules
+  are removed.  Run "cmake --help-policy CMP0148" for policy details.  Use
+  the cmake_policy command to set the policy and suppress this warning, or
+  preferably upgrade to using FindPython, either by calling it explicitly
+  before pybind11, or by setting PYBIND11_FINDPYTHON ON before pybind11.
+Call Stack (most recent call first):
+  D:/vcpkg-master/installed/x64-windows/share/pybind11/pybind11Tools.cmake:44 (find_package)
+  D:/vcpkg-master/installed/x64-windows/share/pybind11/pybind11Common.cmake:226 (include)
+  D:/vcpkg-master/installed/x64-windows/share/pybind11/pybind11Config.cmake:257 (include)
+  CMakeLists.txt:8 (find_package)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Found PythonInterp: D:/Anaconda3/python.exe (found suitable version "3.9.12", minimum required is "3.8")
+-- Found PythonLibs: D:/Anaconda3/libs/python39.lib
+-- Performing Test HAS_MSVC_GL_LTCG
+-- Performing Test HAS_MSVC_GL_LTCG - Success
+-- Found pybind11: D:/vcpkg-master/installed/x64-windows/include (found version "3.0.0")
+-- Configuring done (8.8s)
+-- Generating done (0.1s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    Python3_EXECUTABLE
+
+
+-- Build files have been written to: D:/Jupyter/A_pypy/Decom_for_Undirected_pypy/CMDSA/build
+[ 33%] Building CXX object CMakeFiles/decom_h.dir/decom_h.cpp.obj
+decom_h.cpp
+D:\Jupyter\A_pypy\Decom_for_Undirected_pypy\CMDSA\decom_h.cpp(1): warning C4819: 璇ユ枃浠跺寘鍚笉鑳藉湪褰撳墠浠ｇ爜椤?936)涓〃绀虹殑瀛楃銆傝灏嗚鏂囦欢淇濆瓨涓?Unicode 鏍煎紡浠ラ槻姝㈡暟鎹涪澶?D:\Jupyter\A_pypy\Decom_for_Undirected_pypy\CMDSA\decom_h.h(1): warning C4819: 璇ユ枃浠跺寘鍚笉鑳藉湪褰撳墠浠ｇ爜椤?936)涓〃绀虹殑瀛楃銆傝灏嗚鏂囦欢淇濆瓨涓?Unicode 鏍煎紡浠ラ槻姝㈡暟鎹涪澶?[ 66%] Building C object CMakeFiles/decom_h.dir/decom_h.c.obj
+decom_h.c
+D:\Jupyter\A_pypy\Decom_for_Undirected_pypy\CMDSA\decom_h.c(1): warning C4819: 璇ユ枃浠跺寘鍚笉鑳藉湪褰撳墠浠ｇ爜椤?936)涓〃绀虹殑瀛楃銆傝灏嗚鏂囦欢淇濆瓨涓?Unicode 鏍煎紡浠ラ槻姝㈡暟鎹涪澶?[100%] Linking CXX shared module decom_h.pyd
+[100%] Built target decom_h
+
+Build succeeded.
