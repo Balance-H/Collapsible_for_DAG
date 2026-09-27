@@ -1690,256 +1690,6 @@ static igraph_error_t dag_collect_ancestor_nodes_cached(
 
 
 
-static igraph_error_t dag_ancestor_moral_subgraph_with_mapping(
-    const igraph_t *graph,
-    const igraph_vector_int_t *r_nodes,
-    igraph_t *ug_graph,
-    igraph_vector_int_t *global_to_local,
-    igraph_vector_int_t *local_to_global,
-    igraph_vector_int_t *r_local_out
-) {
-    if (!graph || !r_nodes || !ug_graph || !global_to_local ||
-        !local_to_global || !r_local_out) {
-        return IGRAPH_EINVAL;
-    }
-
-    if (!igraph_is_directed(graph)) {
-        return IGRAPH_EINVAL;
-    }
-
-    igraph_error_t ret = IGRAPH_SUCCESS;
-    const igraph_integer_t n = igraph_vcount(graph);
-
-    if (igraph_vector_int_size(r_nodes) == 0) {
-        igraph_vector_int_clear(global_to_local);
-        igraph_vector_int_clear(local_to_global);
-        igraph_vector_int_clear(r_local_out);
-        return igraph_empty(ug_graph, 0, IGRAPH_UNDIRECTED);
-    }
-
-    igraph_vector_int_t ancestors;
-    ret = igraph_vector_int_init(&ancestors, 0);
-    if (ret != IGRAPH_SUCCESS) {
-        return ret;
-    }
-
-    igraph_integer_t *ancestor_stack = (igraph_integer_t *) malloc(
-        (size_t) (n > 0 ? n : 1) * sizeof(igraph_integer_t)
-    );
-    unsigned char *ancestor_seen = (unsigned char *) calloc(
-        (size_t) (n > 0 ? n : 1),
-        sizeof(unsigned char)
-    );
-
-    dag_moral_cache_t cache;
-    igraph_bool_t cache_initialized = 0;
-    igraph_vs_t vs;
-    igraph_bool_t vs_initialized = 0;
-    igraph_t induced_graph;
-    igraph_bool_t induced_initialized = 0;
-    igraph_adjlist_t parents;
-    igraph_adjlist_t children;
-    igraph_bool_t parents_initialized = 0;
-    igraph_bool_t children_initialized = 0;
-
-    if (!ancestor_stack || !ancestor_seen) {
-        ret = IGRAPH_ENOMEM;
-        goto cleanup;
-    }
-
-    ret = dag_moral_cache_init(&cache, graph);
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-    cache_initialized = 1;
-
-    ret = dag_collect_ancestor_nodes_cached(
-        &cache,
-        r_nodes,
-        &ancestors,
-        ancestor_stack,
-        ancestor_seen
-    );
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-
-    igraph_vector_int_sort(&ancestors);
-    vector_int_unique(&ancestors);
-
-    igraph_vector_int_clear(global_to_local);
-    igraph_vector_int_clear(local_to_global);
-    igraph_vector_int_clear(r_local_out);
-
-    ret = igraph_vector_int_resize(global_to_local, n);
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-    for (igraph_integer_t i = 0; i < n; ++i) {
-        VECTOR(*global_to_local)[i] = 0;
-    }
-
-    ret = igraph_vector_int_append(local_to_global, &ancestors);
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-
-    for (igraph_integer_t i = 0; i < igraph_vector_int_size(&ancestors); ++i) {
-        const igraph_integer_t global_node = VECTOR(ancestors)[i];
-        if (global_node < 0 || global_node >= n) {
-            ret = IGRAPH_EINVVID;
-            goto cleanup;
-        }
-        VECTOR(*global_to_local)[global_node] = i + 1;
-    }
-
-    ret = igraph_vs_vector(&vs, &ancestors);
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-    vs_initialized = 1;
-
-    ret = igraph_induced_subgraph_map(
-        graph,
-        &induced_graph,
-        vs,
-        IGRAPH_SUBGRAPH_AUTO,
-        global_to_local,
-        local_to_global
-    );
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-    induced_initialized = 1;
-
-    igraph_vs_destroy(&vs);
-    vs_initialized = 0;
-
-    ret = igraph_empty(ug_graph, igraph_vcount(&induced_graph), IGRAPH_UNDIRECTED);
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-
-    /* Collect all edges (skeleton + co-parent) into a single vector for batch addition */
-    igraph_vector_int_t all_edges;
-    ret = igraph_vector_int_init(&all_edges, 0);
-    if (ret != IGRAPH_SUCCESS) {
-        goto cleanup;
-    }
-
-    igraph_vector_int_t edge_list;
-    ret = igraph_vector_int_init(&edge_list, 0);
-    if (ret != IGRAPH_SUCCESS) {
-        igraph_vector_int_destroy(&all_edges);
-        goto cleanup;
-    }
-
-    ret = igraph_get_edgelist(&induced_graph, &edge_list, 0);
-    if (ret != IGRAPH_SUCCESS) {
-        igraph_vector_int_destroy(&edge_list);
-        igraph_vector_int_destroy(&all_edges);
-        goto cleanup;
-    }
-
-    /* Add skeleton edges (undirected version of directed edges) */
-    const igraph_integer_t ecount = igraph_ecount(&induced_graph);
-    for (igraph_integer_t ei = 0; ei < ecount; ++ei) {
-        const igraph_integer_t u = VECTOR(edge_list)[2 * ei];
-        const igraph_integer_t v = VECTOR(edge_list)[2 * ei + 1];
-        if (u != v) {
-            ret = igraph_vector_int_push_back(&all_edges, u);
-            if (ret != IGRAPH_SUCCESS) {
-                igraph_vector_int_destroy(&edge_list);
-                igraph_vector_int_destroy(&all_edges);
-                goto cleanup;
-            }
-            ret = igraph_vector_int_push_back(&all_edges, v);
-            if (ret != IGRAPH_SUCCESS) {
-                igraph_vector_int_destroy(&edge_list);
-                igraph_vector_int_destroy(&all_edges);
-                goto cleanup;
-            }
-        }
-    }
-    igraph_vector_int_destroy(&edge_list);
-
-    ret = igraph_adjlist_init(
-        &induced_graph,
-        &parents,
-        IGRAPH_IN,
-        IGRAPH_NO_LOOPS,
-        IGRAPH_NO_MULTIPLE
-    );
-    if (ret != IGRAPH_SUCCESS) {
-        igraph_vector_int_destroy(&all_edges);
-        goto cleanup;
-    }
-    parents_initialized = 1;
-
-    /* Add co-parent edges */
-    for (igraph_integer_t child = 0; child < igraph_vcount(&induced_graph); ++child) {
-        igraph_vector_int_t *parent_list = igraph_adjlist_get(&parents, child);
-        const igraph_integer_t parent_count = igraph_vector_int_size(parent_list);
-        for (igraph_integer_t i = 0; i < parent_count; ++i) {
-            for (igraph_integer_t j = i + 1; j < parent_count; ++j) {
-                const igraph_integer_t a = VECTOR(*parent_list)[i];
-                const igraph_integer_t b = VECTOR(*parent_list)[j];
-                ret = igraph_vector_int_push_back(&all_edges, a);
-                if (ret != IGRAPH_SUCCESS) {
-                    igraph_vector_int_destroy(&all_edges);
-                    goto cleanup;
-                }
-                ret = igraph_vector_int_push_back(&all_edges, b);
-                if (ret != IGRAPH_SUCCESS) {
-                    igraph_vector_int_destroy(&all_edges);
-                    goto cleanup;
-                }
-            }
-        }
-    }
-
-    /* Add all edges at once with automatic deduplication */
-    ret = igraph_add_edges(ug_graph, &all_edges, NULL);
-    if (ret != IGRAPH_SUCCESS) {
-        igraph_vector_int_destroy(&all_edges);
-        goto cleanup;
-    }
-    igraph_vector_int_destroy(&all_edges);
-
-    for (igraph_integer_t i = 0; i < igraph_vector_int_size(r_nodes); ++i) {
-        const igraph_integer_t global_node = VECTOR(*r_nodes)[i];
-        const igraph_integer_t mapped = VECTOR(*global_to_local)[global_node];
-        if (mapped <= 0) {
-            ret = IGRAPH_EINVAL;
-            goto cleanup;
-        }
-        ret = igraph_vector_int_push_back(r_local_out, mapped - 1);
-        if (ret != IGRAPH_SUCCESS) {
-            goto cleanup;
-        }
-    }
-
-    vector_int_unique(r_local_out);
-
-cleanup:
-    if (vs_initialized) {
-        igraph_vs_destroy(&vs);
-    }
-    if (induced_initialized) {
-        igraph_destroy(&induced_graph);
-    }
-    if (parents_initialized) {
-        igraph_adjlist_destroy(&parents);
-    }
-    if (cache_initialized) {
-        dag_moral_cache_destroy(&cache);
-    }
-    free(ancestor_stack);
-    free(ancestor_seen);
-    igraph_vector_int_destroy(&ancestors);
-    return ret;
-}
-
 
 static igraph_error_t dag_components_forbidden_cached(
     dag_moral_cache_t *cache,
@@ -3090,84 +2840,8 @@ igraph_error_t dag_get_minimal_collapsible(
         return IGRAPH_EINVAL;
     }
 
-    igraph_t ug_graph;
-    igraph_bool_t ug_graph_initialized = 0;
-    igraph_vector_int_t preprocessed_r;
-    igraph_bool_t preprocessed_r_initialized = 0;
-    igraph_vector_int_t preprocessed_H;
-    igraph_bool_t preprocessed_H_initialized = 0;
-    igraph_vector_int_t global_to_local;
-    igraph_vector_int_t local_to_global;
-    igraph_vector_int_t r_local;
-    const igraph_vector_int_t *r_nodes_work = r_nodes;
-
-    igraph_error_t ret = igraph_vector_int_init(&preprocessed_r, 0);
-    if (ret != IGRAPH_SUCCESS) {
-        return ret;
-    }
-    preprocessed_r_initialized = 1;
-
-    igraph_vector_int_init(&preprocessed_H, 0);
-    igraph_vector_int_init(&global_to_local, 0);
-    igraph_vector_int_init(&local_to_global, 0);
-    igraph_vector_int_init(&r_local, 0);
-    preprocessed_H_initialized = 1;
-
-    if (igraph_vector_int_size(r_nodes) > 0) {
-        ret = dag_ancestor_moral_subgraph_with_mapping(
-            graph,
-            r_nodes,
-            &ug_graph,
-            &global_to_local,
-            &local_to_global,
-            &r_local
-        );
-        if (ret != IGRAPH_SUCCESS) {
-            goto cleanup_preprocess;
-        }
-        ug_graph_initialized = 1;
-
-        ret = get_minimal_collapsible(&ug_graph, &r_local, &preprocessed_H);
-        if (ret != IGRAPH_SUCCESS) {
-            goto cleanup_preprocess;
-        }
-
-        igraph_vector_int_clear(&preprocessed_r);
-        for (igraph_integer_t i = 0; i < igraph_vector_int_size(&preprocessed_H); ++i) {
-            const igraph_integer_t local_node = VECTOR(preprocessed_H)[i];
-            if (local_node < 0 || local_node >= igraph_vector_int_size(&local_to_global)) {
-                ret = IGRAPH_EINVVID;
-                goto cleanup_preprocess;
-            }
-            ret = igraph_vector_int_push_back(&preprocessed_r, VECTOR(local_to_global)[local_node]);
-            if (ret != IGRAPH_SUCCESS) {
-                goto cleanup_preprocess;
-            }
-        }
-
-        vector_int_unique(&preprocessed_r);
-        r_nodes_work = &preprocessed_r;
-    }
-
-cleanup_preprocess:
-    if (preprocessed_H_initialized) {
-        igraph_vector_int_destroy(&preprocessed_H);
-    }
-    if (ret != IGRAPH_SUCCESS) {
-        if (preprocessed_r_initialized) {
-            igraph_vector_int_destroy(&preprocessed_r);
-        }
-        if (ug_graph_initialized) {
-            igraph_destroy(&ug_graph);
-        }
-        igraph_vector_int_destroy(&global_to_local);
-        igraph_vector_int_destroy(&local_to_global);
-        igraph_vector_int_destroy(&r_local);
-        return ret;
-    }
-
     igraph_bool_t is_dag = 0;
-    ret = igraph_is_dag(graph, &is_dag);
+    igraph_error_t ret = igraph_is_dag(graph, &is_dag);
     if (ret != IGRAPH_SUCCESS) {
         return ret;
     }
@@ -3267,7 +2941,7 @@ cleanup_preprocess:
     boundaries_initialized = 1;
 
     /* 空初始集的闭包仍为空。 */
-    if (igraph_vector_int_size(r_nodes_work) == 0) {
+    if (igraph_vector_int_size(r_nodes) == 0) {
         igraph_vector_int_clear(H_out);
         goto cleanup;
     }
@@ -3296,7 +2970,7 @@ cleanup_preprocess:
      */
     ret = dag_collect_ancestor_nodes_cached(
         &graph_cache,
-        r_nodes_work,
+        r_nodes,
         &anc_nodes,
         ancestor_stack,
         ancestor_seen
@@ -3358,11 +3032,11 @@ cleanup_preprocess:
 
     /* 原图 R 编号 -> an_graph 局部编号。 */
     for (igraph_integer_t i = 0;
-         i < igraph_vector_int_size(r_nodes_work);
+         i < igraph_vector_int_size(r_nodes);
          ++i) {
 
         const igraph_integer_t original_node =
-            VECTOR(*r_nodes_work)[i];
+            VECTOR(*r_nodes)[i];
 
         if (original_node < 0 || original_node >= n) {
             ret = IGRAPH_EINVVID;
@@ -3589,12 +3263,6 @@ cleanup:
     if (h_nodes_initialized) igraph_vector_int_destroy(&h_nodes);
     if (tmp_ancestors_initialized) igraph_vector_int_destroy(&tmp_ancestors);
     if (anc_nodes_initialized) igraph_vector_int_destroy(&anc_nodes);
-    if (preprocessed_r_initialized) {
-        igraph_vector_int_destroy(&preprocessed_r);
-    }
-    if (ug_graph_initialized) {
-        igraph_destroy(&ug_graph);
-    }
 
     return ret;
 }
